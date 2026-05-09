@@ -7,7 +7,7 @@ Build-Depends: debhelper-compat (= 13)
 
 Package: monitoring-plugins-storage
 Architecture: all
-Depends: ${misc:Depends}, perl (>= 5.36), smartmontools (>= 7.2)
+Depends: ${misc:Depends}, ${perl:Depends}, smartmontools (>= 7.2)
 Recommends: nagios-nrpe-server
 Description: Nagios plugins for monitoring storage metrics
  Simple NRPE-compatible plugins to monitor storage-related metrics

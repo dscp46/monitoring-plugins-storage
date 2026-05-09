@@ -1,3 +1,9 @@
+monitoring-plugins-storage (1.1) unstable; urgency=medium
+
+  * Strip the FreeBSD check on check_hdd_health
+
+ -- Celestine GRAMAIZE <celestine+dev@gramaize.eu>  Sat, 09 May 2026 11:10:37 +0200
+
 monitoring-plugins-storage (1.0) unstable; urgency=medium
 
   * Initial release
