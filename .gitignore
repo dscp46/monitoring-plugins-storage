@@ -1,4 +1,4 @@
 debian/.debhelper
-debian/monitoring-plugin-edac*
+debian/monitoring-plugins-storage*
 debian/debhelper-build-stamp
 debian/files
