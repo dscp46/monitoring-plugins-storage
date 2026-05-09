@@ -106,7 +106,6 @@ esac
 shift
 
 test -z $device && echo -e "\nYou forgot to define device! Please try \"-h or --help\" to help." && exit $ST_UN
-test `uname` != "FreeBSD" && echo "This plugin is only for FreeBSD." && exit $ST_UN
 
 format_device=`echo $device | grep -w 'dev'`
 if [ -z $format_device ]; then
