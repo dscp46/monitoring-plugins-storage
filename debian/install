@@ -1,0 +1,5 @@
+check_hdd_health usr/lib/nagios/plugins/
+check_mdraid usr/lib/nagios/plugins/
+check_smart usr/lib/nagios/plugins/
+nrpe.d/* etc/nagios/nrpe.d/
+sudoers.d/* etc/sudoers.d/

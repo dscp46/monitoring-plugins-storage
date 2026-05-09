@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+case "$1" in
+    configure)
+        chmod +x /usr/lib/nagios/plugins/check_hdd_health || true
+        chmod +x /usr/lib/nagios/plugins/check_mdraid || true
+        chmod +x /usr/lib/nagios/plugins/check_smart || true
+    ;;
+esac
+
+exit 0
