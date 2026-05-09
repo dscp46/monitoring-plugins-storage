@@ -1,0 +1,2 @@
+# Monitoring plugin check_hdd_health
+nagios ALL = NOPASSWD: /usr/lib/nagios/plugins/check_hdd_health

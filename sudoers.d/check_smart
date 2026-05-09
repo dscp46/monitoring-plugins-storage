@@ -1,0 +1,2 @@
+# Monitoring plugin check_smart
+nagios ALL = NOPASSWD: /usr/lib/nagios/plugins/check_smart

@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#
+# The MIT License (MIT)
+# 
+# Copyright 2026 Celestine GRAMAIZE
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
+# THE SOFTWARE.
+# 
+# Inspired by Karl J Rink's check_mdstat
+
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+export PATH
+
+MDSTAT_FILE=/proc/mdstat
+
+usage() {
+cat <<EOF
+Usage:
+  $0 mdX
+
+Examples:
+  $0 md0
+  $0 md1
+EOF
+exit $STATE_UNKNOWN
+}
+
+[ $# -ne 1 ] && usage
+
+DEVICE="$1"
+
+if [ ! -r ${MDSTAT_FILE} ]; then
+    echo "UNKNOWN: cannot read ${MDSTAT_FILE}"
+    exit $STATE_UNKNOWN
+fi
+
+#
+# Grab the md block (2 lines usually enough)
+#
+BLOCK=$(grep -A1 "^${DEVICE}[[:space:]]" ${MDSTAT_FILE})
+
+if [ -z "$BLOCK" ]; then
+    echo "UNKNOWN: ${DEVICE} not found"
+    exit $STATE_UNKNOWN
+fi
+
+#
+# Example line:
+# md0 : active raid1 sdb1[1] sda1[0]
+#
+RAID_LEVEL=$(echo "$BLOCK" | head -1 | awk '
+{
+    for(i=1;i<=NF;i++) {
+        if($i ~ /^raid[0-9]+$/) {
+            print $i
+            exit
+        }
+    }
+}')
+
+#
+# Example status line:
+#       2095040 blocks super 1.2 [2/2] [UU]
+#
+STATUS_LINE=$(echo "$BLOCK" | tail -1)
+
+COUNTS=$(echo "$STATUS_LINE" | grep -o '\[[0-9]\+/[0-9]\+\]' | head -1)
+MEMBERS=$(echo "$STATUS_LINE" | grep -o '\[[U_]\+\]' | head -1)
+
+if [ -z "$COUNTS" ] || [ -z "$MEMBERS" ]; then
+    echo "UNKNOWN: unable to parse ${DEVICE}"
+    exit $STATE_UNKNOWN
+fi
+
+TOTAL=$(echo "$COUNTS" | tr -d '[]' | cut -d/ -f1)
+ACTIVE=$(echo "$COUNTS" | tr -d '[]' | cut -d/ -f2)
+
+#
+# Count failed members from bitmap
+#
+FAILED=$(echo "$MEMBERS" | tr -cd '_' | wc -c)
+WORKING=$(echo "$MEMBERS" | tr -cd 'U' | wc -c)
+DEGRADED=$FAILED
+
+STATUS="UNKNOWN"
+EXITCODE=$STATE_UNKNOWN
+
+case "$RAID_LEVEL" in
+    raid1)
+        if [ "$FAILED" -eq 0 ]; then
+            STATUS="OK"
+            EXITCODE=$STATE_OK
+
+        elif [ "$WORKING" -le 1 ]; then
+            STATUS="CRITICAL"
+	    COMMENT="No redundancy left "
+            EXITCODE=$STATE_CRITICAL
+
+        else
+            STATUS="WARNING"
+	    COMMENT="Partially redundant "
+            EXITCODE=$STATE_WARNING
+        fi
+        ;;
+
+    raid6)
+        if [ "$FAILED" -eq 0 ]; then
+            STATUS="OK"
+            EXITCODE=$STATE_OK
+
+        elif [ "$FAILED" -eq 1 ]; then
+            STATUS="WARNING"
+	    COMMENT="Partially redundant "
+            EXITCODE=$STATE_WARNING
+
+        else
+            STATUS="CRITICAL"
+	    COMMENT="No redundancy left "
+            EXITCODE=$STATE_CRITICAL
+        fi
+        ;;
+
+    *)
+        if [ "$FAILED" -eq 0 ]; then
+            STATUS="OK"
+            EXITCODE=$STATE_OK
+        else
+            STATUS="CRITICAL"
+	    COMMENT="No redundancy left "
+            EXITCODE=$STATE_CRITICAL
+        fi
+        ;;
+esac
+
+PERFDATA="total=${TOTAL} active=${ACTIVE} working=${WORKING} failed=${FAILED} degraded=${DEGRADED}"
+
+echo "${STATUS}: ${DEVICE} ${RAID_LEVEL} [${TOTAL}/${ACTIVE}] ${MEMBERS} ${COMMENT}| ${PERFDATA}"
+
+exit $EXITCODE
